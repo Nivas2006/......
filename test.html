@@ -1,0 +1,2231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brainiz 🧠 — Hard Mode</title>
+
+  <style>
+    /* ============================================================
+       GLOBAL RESET & CSS VARIABLES
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #070714;
+      --card:    #11112b;
+      --card2:   #17173a;
+      --p:       #a855f7;   /* purple  */
+      --p2:      #ec4899;   /* pink    */
+      --g:       #10b981;   /* green   */
+      --b:       #3b82f6;   /* blue    */
+      --y:       #f59e0b;   /* amber   */
+      --r:       #ef4444;   /* red     */
+      --t:       #f1f5f9;   /* text    */
+      --m:       #64748b;   /* muted   */
+      --radius:  18px;
+      --sh:      0 8px 40px rgba(0,0,0,0.6);
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg,#070714 0%,#1a0933 55%,#070714 100%);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--t);
+    }
+
+    /* ============================================================
+       APP + SCREENS
+    ============================================================ */
+    #app {
+      position: relative;
+      width: min(460px, 97vw);
+    }
+
+    .screen {
+      display: none; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--sh);
+      border: 1px solid rgba(168,85,247,0.15);
+      padding: 32px 26px 26px;
+      width: 100%;
+      min-height: 580px;
+      animation: fadeIn .4s ease;
+    }
+    .screen.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity:0; transform:translateY(16px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* ============================================================
+       TYPOGRAPHY
+    ============================================================ */
+    h1 {
+      font-size: 2.9rem; font-weight: 900; letter-spacing: -1px;
+      background: linear-gradient(90deg, var(--p), var(--p2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 4px;
+    }
+
+    .tagline { color: var(--m); font-size: .9rem; margin-bottom: 28px; }
+
+    .level-badge {
+      background: linear-gradient(90deg,var(--p),var(--b));
+      padding: 3px 13px; border-radius: 20px;
+      font-size: .72rem; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 12px; align-self: flex-start;
+    }
+
+    .question {
+      font-size: 1.1rem; font-weight: 700;
+      text-align: center; margin-bottom: 22px;
+      line-height: 1.5; min-height: 54px; white-space: pre-line;
+    }
+
+    /* ============================================================
+       BUTTONS — BASE
+    ============================================================ */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px; padding: 13px 30px; border: none;
+      border-radius: 50px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: transform .15s, box-shadow .15s, opacity .15s;
+      user-select: none;
+    }
+    .btn:active  { transform: scale(.95); }
+    .btn:hover   { opacity: .9; }
+
+    .btn-primary {
+      background: linear-gradient(135deg,var(--p),var(--p2));
+      color:#fff; font-size:1.15rem; padding:15px 44px;
+      box-shadow: 0 4px 24px rgba(168,85,247,.45);
+    }
+    .btn-next {
+      background: linear-gradient(135deg,var(--g),var(--b));
+      color:#fff; margin-top:16px; display:none;
+    }
+    .btn-next.visible { display: inline-flex; }
+    .btn-restart { background: linear-gradient(135deg,var(--y),var(--p2)); color:#fff; margin-top:16px; }
+
+    /* ============================================================
+       PROGRESS BAR
+    ============================================================ */
+    .progress-wrap {
+      width:100%; background:rgba(255,255,255,.07);
+      border-radius:10px; height:7px; margin-bottom:20px; overflow:hidden;
+    }
+    .progress-bar {
+      height:100%; border-radius:10px;
+      background: linear-gradient(90deg,var(--p),var(--p2));
+      transition: width .55s ease;
+    }
+
+    /* ============================================================
+       FEEDBACK
+    ============================================================ */
+    #feedback {
+      min-height:30px; font-size:.95rem; font-weight:700;
+      text-align:center; margin-top:12px;
+      border-radius:10px; padding:5px 14px;
+      transition:opacity .3s; opacity:0;
+    }
+    #feedback.show    { opacity:1; }
+    #feedback.correct { color:#34d399; }
+    #feedback.wrong   { color:#f87171; animation:shake .35s; }
+
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 25%{transform:translateX(-7px)} 75%{transform:translateX(7px)}
+    }
+
+    /* ============================================================
+       PUZZLE AREA
+    ============================================================ */
+    #puzzle-area {
+      width:100%; display:flex; flex-direction:column;
+      align-items:center; gap:12px; flex:1;
+    }
+
+    /* ──────────────── SHARED PUZZLE COMPONENTS ──────────────── */
+
+    /* Generic row of choices */
+    .choice-row { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+
+    .choice-btn {
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.12);
+      border-radius:14px; padding:14px 18px; cursor:pointer;
+      font-size:2.2rem; transition:border-color .2s,background .2s,transform .15s;
+      user-select:none;
+    }
+    .choice-btn span.label { font-size:.76rem; font-weight:600; color:var(--m); }
+    .choice-btn:hover { border-color:var(--p); background:rgba(168,85,247,.1); transform:translateY(-3px); }
+    .choice-btn.correct-c { border-color:var(--g); background:rgba(16,185,129,.15); }
+    .choice-btn.wrong-c   { border-color:var(--r); background:rgba(239,68,68,.1); }
+
+    /* Multiple-choice text buttons */
+    .mc-btn {
+      padding:11px 22px; border-radius:10px;
+      background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.12);
+      color:var(--t); font-size:1rem; font-weight:700; cursor:pointer;
+      transition:border-color .2s,background .2s,transform .15s;
+    }
+    .mc-btn:hover { border-color:var(--p); background:rgba(168,85,247,.12); transform:scale(1.04); }
+    .mc-btn.correct-c { border-color:var(--g); background:rgba(16,185,129,.18); color:#34d399; }
+    .mc-btn.wrong-c   { border-color:var(--r); background:rgba(239,68,68,.12); color:#f87171; }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 1: Pixel Hunt
+    ────────────────────────────────────────────── */
+    #pixel-canvas {
+      position:relative; width:300px; height:180px;
+      background:linear-gradient(135deg,#1a1a3e,#0f0f2e);
+      border-radius:14px; overflow:hidden; cursor:crosshair;
+      border:1px solid rgba(255,255,255,.07);
+    }
+    .decoy-dot {
+      position:absolute; border-radius:50%; pointer-events:none;
+    }
+    #real-dot {
+      position:absolute; width:9px; height:9px;
+      border-radius:50%; background:#ef4444;
+      cursor:pointer; z-index:10;
+      box-shadow:0 0 6px #ef4444;
+      transition:transform .15s;
+    }
+    #real-dot:hover { transform:scale(1.4); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 2: Liar Buttons
+    ────────────────────────────────────────────── */
+    .liar-grid {
+      display:grid; grid-template-columns:1fr 1fr;
+      gap:12px; width:100%;
+    }
+    .liar-btn {
+      padding:14px; border-radius:12px;
+      background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.12);
+      color:var(--t); font-size:.88rem; font-weight:700; cursor:pointer;
+      transition:all .2s;
+    }
+    .liar-btn:hover { border-color:var(--p2); background:rgba(236,72,153,.1); transform:scale(1.03); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 3: Stroop Test
+    ────────────────────────────────────────────── */
+    #stroop-word {
+      font-size:3.2rem; font-weight:900; letter-spacing:4px;
+      padding:18px 32px; border-radius:14px;
+      background:rgba(255,255,255,.05);
+    }
+    .stroop-opts { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+    .stroop-opt {
+      width:52px; height:52px; border-radius:50%; border:3px solid rgba(255,255,255,.2);
+      cursor:pointer; transition:transform .2s,box-shadow .2s;
+    }
+    .stroop-opt:hover { transform:scale(1.15); box-shadow:0 0 16px rgba(255,255,255,.3); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 4: Drag to Drop Zone
+    ────────────────────────────────────────────── */
+    #drag-arena {
+      position:relative; width:300px; height:180px;
+      background:rgba(255,255,255,.04); border-radius:14px;
+      border:1px dashed rgba(255,255,255,.12); overflow:hidden;
+    }
+    #drop-zone {
+      position:absolute; right:20px; top:50%; transform:translateY(-50%);
+      width:72px; height:72px; border-radius:14px;
+      border:2px dashed var(--y); display:flex;
+      align-items:center; justify-content:center;
+      font-size:.7rem; color:var(--y); font-weight:700;
+      transition:background .3s,box-shadow .3s;
+    }
+    #drop-zone.over { background:rgba(245,158,11,.15); box-shadow:0 0 18px rgba(245,158,11,.4); }
+    #drop-zone.landed { background:rgba(16,185,129,.15); border-color:var(--g); box-shadow:0 0 18px rgba(16,185,129,.4); }
+    #drag-item {
+      position:absolute; font-size:2.4rem;
+      cursor:grab; user-select:none; z-index:10;
+      top:50%; left:22px; transform:translateY(-50%);
+      transition:filter .3s; filter:drop-shadow(0 0 8px var(--y));
+    }
+    #drag-item.grabbing { cursor:grabbing; }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 5: Patience / Don't Click
+    ────────────────────────────────────────────── */
+    #patience-ring {
+      width:120px; height:120px; border-radius:50%;
+      border:5px solid rgba(255,255,255,.1);
+      display:flex; align-items:center; justify-content:center;
+      flex-direction:column; gap:4px; cursor:not-allowed;
+      position:relative; overflow:hidden;
+    }
+    #patience-ring svg {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      transform:rotate(-90deg);
+    }
+    #patience-ring svg circle {
+      fill:none; stroke:var(--g); stroke-width:5;
+      stroke-dasharray:345; stroke-dashoffset:345;
+      stroke-linecap:round;
+      transition:stroke-dashoffset .1s linear;
+    }
+    #patience-count { font-size:2rem; font-weight:900; position:relative; z-index:1; }
+    #patience-label { font-size:.68rem; color:var(--m); position:relative; z-index:1; }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 6: Simon Says
+    ────────────────────────────────────────────── */
+    .simon-grid {
+      display:grid; grid-template-columns:1fr 1fr;
+      gap:10px; width:220px;
+    }
+    .simon-btn {
+      height:88px; border-radius:14px; border:none;
+      cursor:pointer; opacity:.35;
+      transition:opacity .15s, box-shadow .15s, transform .1s;
+    }
+    .simon-btn.lit { opacity:1; box-shadow:0 0 28px currentColor; transform:scale(1.04); }
+    .simon-btn.active { opacity:.85; }
+    .simon-btn:hover.active { transform:scale(1.04); }
+
+    #simon-status {
+      font-size:.82rem; color:var(--m); font-weight:600;
+      min-height:22px; text-align:center;
+    }
+    #simon-progress {
+      display:flex; gap:6px; justify-content:center; flex-wrap:wrap;
+    }
+    .simon-pip {
+      width:10px; height:10px; border-radius:50%;
+      background:rgba(255,255,255,.15);
+      transition:background .2s;
+    }
+    .simon-pip.done { background:var(--g); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 7: Runaway Button
+    ────────────────────────────────────────────── */
+    #runaway-arena {
+      position:relative; width:300px; height:180px;
+      background:rgba(255,255,255,.04); border-radius:14px;
+      border:1px solid rgba(255,255,255,.08); overflow:hidden;
+    }
+    #runaway-btn {
+      position:absolute; padding:10px 18px;
+      border-radius:50px; border:none;
+      background:linear-gradient(135deg,var(--r),var(--p2));
+      color:#fff; font-size:.88rem; font-weight:800;
+      cursor:pointer; z-index:10;
+      transition:top .28s cubic-bezier(.4,0,.2,1), left .28s cubic-bezier(.4,0,.2,1),
+                 opacity .3s, box-shadow .3s;
+    }
+    #runaway-btn:hover { box-shadow:0 0 20px var(--p2); }
+    #tired-hint { font-size:.76rem; color:var(--m); text-align:center; }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 8: PEMDAS / Math Trap
+    ────────────────────────────────────────────── */
+    #math-display {
+      font-size:1.9rem; font-weight:900; letter-spacing:2px;
+      padding:16px 24px; border-radius:14px;
+      background:rgba(255,255,255,.05); text-align:center;
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .math-opts { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+    .math-opt {
+      width:62px; height:62px; border-radius:50%;
+      background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.12);
+      color:var(--t); font-size:1.3rem; font-weight:900;
+      cursor:pointer; transition:all .2s;
+    }
+    .math-opt:hover { border-color:var(--b); background:rgba(59,130,246,.15); transform:scale(1.1); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 9: Odd One Out
+    ────────────────────────────────────────────── */
+    #odd-grid {
+      display:grid; grid-template-columns:repeat(6,1fr);
+      gap:4px; width:300px;
+    }
+    .odd-cell {
+      aspect-ratio:1; border-radius:6px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.25rem; cursor:pointer;
+      background:rgba(255,255,255,.04);
+      transition:transform .15s, background .15s;
+    }
+    .odd-cell:hover { background:rgba(255,255,255,.1); transform:scale(1.1); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 10: Type Backwards
+    ────────────────────────────────────────────── */
+    #reverse-word {
+      font-size:2.8rem; font-weight:900; letter-spacing:6px;
+      padding:14px 28px; border-radius:12px;
+      background:rgba(255,255,255,.05);
+      background: linear-gradient(135deg,rgba(168,85,247,.18),rgba(236,72,153,.18));
+    }
+    #reverse-input {
+      width:220px; padding:12px 18px;
+      border-radius:50px; border:2px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.06); color:var(--t);
+      font-size:1.15rem; font-weight:700; text-align:center;
+      outline:none; letter-spacing:3px; text-transform:uppercase;
+      transition:border-color .2s;
+    }
+    #reverse-input:focus { border-color:var(--p); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 11: Click 1→5
+    ────────────────────────────────────────────── */
+    .num5-arena {
+      position:relative; width:300px; height:210px;
+    }
+    .n5-btn {
+      position:absolute; width:56px; height:56px;
+      border-radius:50%; border:none;
+      font-size:1.2rem; font-weight:900; color:#fff;
+      cursor:pointer; transition:transform .2s, box-shadow .2s, opacity .3s;
+      box-shadow:0 4px 14px rgba(0,0,0,.35);
+    }
+    .n5-btn:hover { transform:scale(1.12); }
+    .n5-btn.clicked { opacity:.3; transform:scale(.82); pointer-events:none; }
+    .n5-btn.flash-err { animation:flashRed .4s; }
+    @keyframes flashRed {
+      0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.35)}
+      50%{box-shadow:0 0 22px #ef4444,0 0 40px #ef4444}
+    }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 12: Fibonacci
+    ────────────────────────────────────────────── */
+    #fib-sequence {
+      font-size:1.55rem; font-weight:800; letter-spacing:4px;
+      padding:14px 20px; border-radius:12px;
+      background:rgba(255,255,255,.05); text-align:center;
+    }
+    #fib-sequence span.blank {
+      color:var(--p); border-bottom:3px solid var(--p);
+      padding:0 12px;
+    }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 13: Forbidden Click
+    ────────────────────────────────────────────── */
+    .forbidden-wrap {
+      display:flex; flex-direction:column;
+      align-items:center; gap:14px; width:100%;
+    }
+    #forbidden-btn {
+      padding:16px 32px; border-radius:14px;
+      background:linear-gradient(135deg,#7f1d1d,#ef4444);
+      border:3px solid #f87171;
+      color:#fff; font-size:1rem; font-weight:900;
+      cursor:pointer; box-shadow:0 0 24px rgba(239,68,68,.4);
+      transition:transform .15s, box-shadow .15s;
+      letter-spacing:.5px;
+    }
+    #forbidden-btn:hover { transform:scale(1.04); box-shadow:0 0 36px rgba(239,68,68,.6); }
+    .decoy-wrap { display:flex; gap:10px; }
+    .decoy-btn {
+      padding:10px 18px; border-radius:10px;
+      background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.12);
+      color:var(--t); font-size:.82rem; font-weight:700; cursor:pointer;
+      transition:all .2s;
+    }
+    .decoy-btn:hover { background:rgba(255,255,255,.12); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 14: Count the letter
+    ────────────────────────────────────────────── */
+    #count-sentence {
+      font-size:.95rem; font-weight:600; line-height:1.7;
+      padding:14px 18px; border-radius:12px;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      text-align:center; letter-spacing:.5px;
+    }
+    #count-sentence .highlight { color:var(--y); font-weight:900; }
+    .count-opts { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+    .count-opt {
+      width:56px; height:56px; border-radius:50%;
+      background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.12);
+      color:var(--t); font-size:1.1rem; font-weight:900;
+      cursor:pointer; transition:all .2s;
+    }
+    .count-opt:hover { border-color:var(--y); background:rgba(245,158,11,.15); transform:scale(1.1); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 15: Shrinking Target
+    ────────────────────────────────────────────── */
+    #shrink-wrap {
+      position:relative; width:260px; height:160px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    #shrink-btn {
+      width:90px; height:90px; border-radius:50%; border:none;
+      background:linear-gradient(135deg,var(--p),var(--b));
+      color:#fff; font-size:1rem; font-weight:900;
+      cursor:pointer; transition:transform .15s;
+      box-shadow:0 0 22px rgba(168,85,247,.5);
+    }
+    #shrink-btn:hover { transform:scale(1.06); }
+    #shrink-bar-wrap {
+      position:absolute; bottom:0; left:0; right:0;
+      height:5px; background:rgba(255,255,255,.08);
+      border-radius:5px; overflow:hidden;
+    }
+    #shrink-bar {
+      height:100%; width:100%;
+      background:linear-gradient(90deg,var(--g),var(--y));
+      transition:width .1s linear;
+    }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 16: Memory Grid
+    ────────────────────────────────────────────── */
+    #mem-grid {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      gap:8px; width:220px;
+    }
+    .mem-cell {
+      aspect-ratio:1; border-radius:10px;
+      background:rgba(255,255,255,.07);
+      border:2px solid rgba(255,255,255,.1);
+      cursor:pointer; transition:background .2s,border-color .2s,transform .15s;
+    }
+    .mem-cell:hover { background:rgba(255,255,255,.13); transform:scale(1.04); }
+    .mem-cell.lit    { background:linear-gradient(135deg,var(--p),var(--b)); border-color:var(--p); box-shadow:0 0 18px rgba(168,85,247,.5); }
+    .mem-cell.hit    { background:linear-gradient(135deg,var(--g),#059669); border-color:var(--g); box-shadow:0 0 14px rgba(16,185,129,.4); }
+    .mem-cell.miss   { background:rgba(239,68,68,.25); border-color:var(--r); animation:shake .3s; }
+    #mem-status { font-size:.82rem; color:var(--m); text-align:center; min-height:20px; }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 17: Reaction Time
+    ────────────────────────────────────────────── */
+    #reaction-circle {
+      width:130px; height:130px; border-radius:50%;
+      border:5px solid rgba(255,255,255,.1);
+      display:flex; align-items:center; justify-content:center;
+      flex-direction:column; gap:4px;
+      cursor:pointer; transition:background .15s, box-shadow .15s;
+      background:rgba(255,255,255,.05);
+      font-size:.8rem; font-weight:700; color:var(--m);
+      user-select:none;
+    }
+    #reaction-circle.ready  { background:rgba(239,68,68,.2);  border-color:var(--r);  box-shadow:0 0 20px rgba(239,68,68,.3); }
+    #reaction-circle.go     { background:rgba(16,185,129,.3); border-color:var(--g);  box-shadow:0 0 28px rgba(16,185,129,.5); cursor:crosshair; }
+    #reaction-circle.missed { background:rgba(239,68,68,.15); border-color:var(--r); }
+    #reaction-label { font-size:.9rem; font-weight:800; color:var(--t); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 18: Darker Shade
+    ────────────────────────────────────────────── */
+    .shade-row { display:flex; gap:20px; justify-content:center; }
+    .shade-swatch {
+      width:100px; height:100px; border-radius:14px;
+      cursor:pointer; border:3px solid transparent;
+      transition:transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .shade-swatch:hover { transform:scale(1.06); box-shadow:0 0 22px rgba(255,255,255,.2); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 19: Circles — Smallest (revisited harder)
+    ────────────────────────────────────────────── */
+    /* reuses .circle-option from original level 1 */
+    .circle-option {
+      border-radius:50%; cursor:pointer;
+      border:3px solid transparent;
+      transition:transform .2s, box-shadow .2s;
+      flex-shrink:0;
+    }
+    .circle-option:hover { transform:scale(1.06); box-shadow:0 0 18px rgba(255,255,255,.2); }
+
+    /* ──────────────────────────────────────────────
+       LEVEL 20: Meta Twist
+    ────────────────────────────────────────────── */
+    .meta-wrap { display:flex; flex-direction:column; align-items:center; gap:12px; width:100%; }
+    .fake-btn {
+      padding:13px 28px; border-radius:50px;
+      background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.12);
+      color:var(--m); font-size:.9rem; font-weight:700; cursor:pointer;
+      transition:all .2s; pointer-events:all;
+    }
+    .fake-btn:hover { background:rgba(255,255,255,.12); }
+    #real-answer-text {
+      color:var(--t); font-size:1rem; font-weight:700;
+      border-bottom:2px solid transparent;
+      cursor:pointer; transition:border-color .2s,color .2s;
+      padding:4px 8px;
+    }
+    #real-answer-text:hover { border-color:var(--y); color:var(--y); }
+
+    /* ============================================================
+       WIN SCREEN
+    ============================================================ */
+    .win-emoji { font-size:5rem; margin-bottom:10px; animation:pop .5s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes pop { from{transform:scale(0)} to{transform:scale(1)} }
+    .win-title {
+      font-size:1.9rem; font-weight:900;
+      background:linear-gradient(90deg,var(--y),var(--p2));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text; margin-bottom:8px;
+    }
+    .win-sub {
+      color:var(--m); font-size:.9rem; text-align:center;
+      line-height:1.7; margin-bottom:24px;
+    }
+    .stars-row { font-size:2rem; margin-bottom:16px; letter-spacing:4px; }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+    @media (max-width:400px) {
+      .screen { padding:24px 14px 18px; }
+      #odd-grid { width:270px; }
+      .simon-grid { width:196px; }
+      .shade-swatch { width:82px; height:82px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============================================================
+       START SCREEN
+  ============================================================ -->
+  <div id="screen-start" class="screen active">
+    <h1>Brainiz 🧠</h1>
+    <p class="tagline">20 devious levels. Your brain will hurt. Good.</p>
+
+    <div style="font-size:3rem;margin-bottom:24px;animation:pop .6s ease">💀</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-bottom:28px">
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;font-size:.78rem;color:var(--m);text-align:center;border:1px solid rgba(255,255,255,.07)">🔴 Pixel Hunt</div>
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;font-size:.78rem;color:var(--m);text-align:center;border:1px solid rgba(255,255,255,.07)">🤥 Liar Buttons</div>
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;font-size:.78rem;color:var(--m);text-align:center;border:1px solid rgba(255,255,255,.07)">🎨 Stroop Test</div>
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;font-size:.78rem;color:var(--m);text-align:center;border:1px solid rgba(255,255,255,.07)">⏳ Patience</div>
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;font-size:.78rem;color:var(--m);text-align:center;border:1px solid rgba(255,255,255,.07)">🎵 Simon Says</div>
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;font-size:.78rem;color:var(--m);text-align:center;border:1px solid rgba(255,255,255,.07)">🏃 Catch It</div>
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;font-size:.78rem;color:var(--m);text-align:center;border:1px solid rgba(255,255,255,.07)">🔢 Math Trap</div>
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;font-size:.78rem;color:var(--m);text-align:center;border:1px solid rgba(255,255,255,.07)">+12 more…</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="Game.start()">Accept the Challenge →</button>
+  </div>
+
+  <!-- ============================================================
+       GAME SCREEN
+  ============================================================ -->
+  <div id="screen-game" class="screen">
+    <span id="level-badge" class="level-badge">Level 1 / 20</span>
+
+    <div class="progress-wrap">
+      <div id="progress-bar" class="progress-bar" style="width:0%"></div>
+    </div>
+
+    <p id="question" class="question"></p>
+    <div id="puzzle-area"></div>
+    <div id="feedback"></div>
+    <button id="btn-next" class="btn btn-next" onclick="Game.nextLevel()">Next Level →</button>
+  </div>
+
+  <!-- ============================================================
+       WIN SCREEN
+  ============================================================ -->
+  <div id="screen-win" class="screen" style="justify-content:center">
+    <div class="win-emoji">🏆</div>
+    <div class="stars-row">⭐⭐⭐⭐⭐</div>
+    <p class="win-title">Elite Brain Unlocked!</p>
+    <p class="win-sub">
+      You crushed all 20 devious levels.<br>
+      Your brain is absolutely not normal.<br>
+      That's a compliment. 🧠✨
+    </p>
+    <button class="btn btn-restart" onclick="Game.restart()">Play Again 🔄</button>
+  </div>
+
+</div>
+
+
+<script>
+/* ================================================================
+   GAME CONTROLLER
+================================================================ */
+const Game = (() => {
+  let currentLevel = 0;
+  let solved       = false;
+  let cleanupFn    = null; // each puzzle can register a cleanup callback
+
+  const elQ        = document.getElementById('question');
+  const elArea     = document.getElementById('puzzle-area');
+  const elFeedback = document.getElementById('feedback');
+  const elNext     = document.getElementById('btn-next');
+  const elBadge    = document.getElementById('level-badge');
+  const elProgress = document.getElementById('progress-bar');
+  const screens    = {
+    start: document.getElementById('screen-start'),
+    game:  document.getElementById('screen-game'),
+    win:   document.getElementById('screen-win'),
+  };
+
+  function showScreen(name) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+  }
+
+  /* Show feedback message */
+  function feedback(msg, type) {
+    elFeedback.textContent = msg;
+    elFeedback.className = '';
+    void elFeedback.offsetWidth; // reflow to restart animation
+    elFeedback.className = `show ${type}`;
+  }
+
+  /* Call when puzzle is solved */
+  function markSolved() {
+    if (solved) return;
+    solved = true;
+    feedback('✅ Correct! You got it!', 'correct');
+    elNext.classList.add('visible');
+  }
+
+  function updateHUD() {
+    elBadge.textContent    = `Level ${currentLevel + 1} / ${LEVELS.length}`;
+    elProgress.style.width = `${(currentLevel / LEVELS.length) * 100}%`;
+  }
+
+  function loadLevel() {
+    // Run previous cleanup if any (clear timers etc.)
+    if (cleanupFn) { cleanupFn(); cleanupFn = null; }
+
+    solved = false;
+    elNext.classList.remove('visible');
+    elFeedback.className = '';
+    elFeedback.textContent = '';
+
+    updateHUD();
+    const lvl = LEVELS[currentLevel];
+    elQ.textContent = lvl.question;
+    elArea.innerHTML = '';
+
+    const ctx = { markSolved, feedback, setCleanup: fn => { cleanupFn = fn; } };
+    lvl.setup(elArea, ctx);
+  }
+
+  function start() {
+    currentLevel = 0;
+    showScreen('game');
+    loadLevel();
+  }
+
+  function nextLevel() {
+    currentLevel++;
+    if (currentLevel >= LEVELS.length) {
+      elProgress.style.width = '100%';
+      showScreen('win');
+    } else {
+      loadLevel();
+    }
+  }
+
+  function restart() { start(); }
+
+  return { start, nextLevel, restart };
+})();
+
+
+/* ================================================================
+   UTILITY HELPERS
+================================================================ */
+
+/** Pick random element from array */
+function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/** Shuffle array in place (Fisher-Yates) */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/** Clamp a number between min and max */
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+/** Disable all matching elements */
+function disableAll(parent, selector) {
+  parent.querySelectorAll(selector).forEach(el => {
+    el.style.pointerEvents = 'none';
+  });
+}
+
+/** Re-enable all matching elements */
+function enableAll(parent, selector) {
+  parent.querySelectorAll(selector).forEach(el => {
+    el.style.pointerEvents = '';
+  });
+}
+
+
+/* ================================================================
+   20 LEVELS
+================================================================ */
+const LEVELS = [
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 1 — Pixel Hunt
+     A tiny red dot (9px) hides among ~25 coloured decoy dots of
+     similar size but different colours.  Players must scan the
+     entire area carefully.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🔍 Find and click the tiny RED dot.\nAll others are decoys!',
+    setup(container, { markSolved, feedback }) {
+      const canvas = document.createElement('div');
+      canvas.id = 'pixel-canvas';
+
+      /* Place real red dot at a random position, avoiding edges */
+      const rx = 6 + Math.random() * 82; // percent
+      const ry = 6 + Math.random() * 82;
+
+      const dot = document.createElement('div');
+      dot.id = 'real-dot';
+      dot.style.left = rx + '%';
+      dot.style.top  = ry + '%';
+      dot.addEventListener('click', markSolved);
+      canvas.appendChild(dot);
+
+      /* Generate ~28 decoy dots in various non-red colours */
+      const decoyColors = [
+        '#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4',
+        '#84cc16','#f97316','#e879f9','#22d3ee','#a3e635',
+      ];
+      for (let i = 0; i < 28; i++) {
+        const d = document.createElement('div');
+        d.className = 'decoy-dot';
+        const size = 7 + Math.random() * 6; // 7–13px
+        d.style.width  = size + 'px';
+        d.style.height = size + 'px';
+        d.style.background = rand(decoyColors);
+        d.style.opacity    = (.4 + Math.random() * .6).toFixed(2);
+        d.style.left  = (Math.random() * 92) + '%';
+        d.style.top   = (Math.random() * 88) + '%';
+        d.style.boxShadow = `0 0 4px ${d.style.background}`;
+        canvas.appendChild(d);
+      }
+
+      container.appendChild(canvas);
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--m);font-size:.78rem;text-align:center';
+      tip.textContent = 'Scan carefully — the red dot can be anywhere';
+      container.appendChild(tip);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 2 — Liar Buttons
+     Four buttons all claim to be the right one.  The only correct
+     button is the one that ADMITS it's wrong.  Players who just
+     click "Click Me!" or "Press Here!" get rejected.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🤥 Only ONE button is telling the truth.\nClick the CORRECT one.',
+    setup(container, { markSolved, feedback }) {
+
+      const grid = document.createElement('div');
+      grid.className = 'liar-grid';
+
+      /* All four options — only "I'm the wrong one" is correct */
+      const options = shuffle([
+        { text: '✅ Click me!',           correct: false },
+        { text: '👆 This one, obviously', correct: false },
+        { text: '⭐ I\'m definitely right',correct: false },
+        { text: '❌ Don\'t click me',      correct: true  }, // counter-intuitive answer
+      ]);
+
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'liar-btn';
+        btn.textContent = opt.text;
+
+        btn.addEventListener('click', () => {
+          disableAll(grid, '.liar-btn');
+          if (opt.correct) {
+            btn.style.borderColor = 'var(--g)';
+            btn.style.background  = 'rgba(16,185,129,.18)';
+            markSolved();
+          } else {
+            btn.style.borderColor = 'var(--r)';
+            btn.style.background  = 'rgba(239,68,68,.12)';
+            feedback('❌ That one was lying to you!', 'wrong');
+            setTimeout(() => {
+              btn.style.borderColor = '';
+              btn.style.background  = '';
+              enableAll(grid, '.liar-btn');
+            }, 1100);
+          }
+        });
+
+        grid.appendChild(btn);
+      });
+
+      container.appendChild(grid);
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--m);font-size:.78rem;text-align:center';
+      tip.textContent = '🧠 Only one button is being honest with you';
+      container.appendChild(tip);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 3 — Stroop Colour Test
+     The word "BLUE" is printed in YELLOW ink.  The answer is
+     the INK colour, not the word.  Classic cognitive trap.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🎨 Click the COLOUR the text is printed in,\nNOT what the word says!',
+    setup(container, { markSolved, feedback }) {
+
+      /* Pick a word and a different ink colour */
+      const colours = [
+        { name:'RED',    hex:'#ef4444' },
+        { name:'BLUE',   hex:'#3b82f6' },
+        { name:'GREEN',  hex:'#10b981' },
+        { name:'YELLOW', hex:'#f59e0b' },
+        { name:'PURPLE', hex:'#a855f7' },
+      ];
+
+      /* word ≠ ink colour */
+      const wordEntry = rand(colours);
+      let   inkEntry  = rand(colours);
+      while (inkEntry.name === wordEntry.name) inkEntry = rand(colours);
+
+      /* Display the word in the ink colour */
+      const wordEl = document.createElement('div');
+      wordEl.id = 'stroop-word';
+      wordEl.textContent  = wordEntry.name;
+      wordEl.style.color  = inkEntry.hex;
+      container.appendChild(wordEl);
+
+      const hint = document.createElement('p');
+      hint.style.cssText = 'color:var(--m);font-size:.8rem;text-align:center';
+      hint.textContent = `Click the colour of the ink — ignore what the word says`;
+      container.appendChild(hint);
+
+      /* 4 colour swatches (include correct ink + 3 wrong) */
+      const opts = document.createElement('div');
+      opts.className = 'stroop-opts';
+
+      const pool = colours.filter(c => c.name !== inkEntry.name);
+      shuffle(pool);
+      const displayOpts = shuffle([inkEntry, pool[0], pool[1], pool[2]]);
+
+      displayOpts.forEach(c => {
+        const sw = document.createElement('button');
+        sw.className = 'stroop-opt';
+        sw.style.background = c.hex;
+        sw.title = c.name;
+
+        sw.addEventListener('click', () => {
+          disableAll(opts, '.stroop-opt');
+          if (c.name === inkEntry.name) {
+            sw.style.borderColor = '#fff';
+            sw.style.boxShadow   = `0 0 18px ${c.hex}`;
+            markSolved();
+          } else {
+            feedback(`❌ That\'s the word colour! The ink is ${inkEntry.name}.`, 'wrong');
+            setTimeout(() => enableAll(opts, '.stroop-opt'), 1000);
+          }
+        });
+
+        opts.appendChild(sw);
+      });
+
+      container.appendChild(opts);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 4 — Drag to the Drop Zone
+     Drag the 🎯 emoji into a glowing target box.  More precise
+     than just "drag away" — must land inside the zone.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🎯 Drag the target into the glowing DROP ZONE',
+    setup(container, { markSolved, feedback, setCleanup }) {
+
+      const arena = document.createElement('div');
+      arena.id = 'drag-arena';
+
+      const zone = document.createElement('div');
+      zone.id = 'drop-zone';
+      zone.textContent = 'DROP\nHERE';
+      zone.style.whiteSpace = 'pre';
+      arena.appendChild(zone);
+
+      const item = document.createElement('div');
+      item.id = 'drag-item';
+      item.textContent = '🎯';
+      arena.appendChild(item);
+
+      container.appendChild(arena);
+
+      /* Drag logic (mouse + touch) */
+      let dragging = false, ox = 0, oy = 0;
+
+      function startDrag(cx, cy) {
+        dragging = true;
+        item.classList.add('grabbing');
+        const r = item.getBoundingClientRect();
+        ox = cx - r.left;
+        oy = cy - r.top;
+      }
+
+      function moveDrag(cx, cy) {
+        if (!dragging) return;
+        const ar = arena.getBoundingClientRect();
+        let x = cx - ar.left - ox;
+        let y = cy - ar.top  - oy;
+        x = clamp(x, 0, ar.width  - 42);
+        y = clamp(y, 0, ar.height - 42);
+        item.style.left      = x + 'px';
+        item.style.top       = y + 'px';
+        item.style.transform = 'none';
+
+        /* Check overlap with drop zone */
+        const ir = item.getBoundingClientRect();
+        const zr = zone.getBoundingClientRect();
+        const overlap =
+          ir.left < zr.right  && ir.right  > zr.left &&
+          ir.top  < zr.bottom && ir.bottom > zr.top;
+        zone.classList.toggle('over', overlap);
+      }
+
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        item.classList.remove('grabbing');
+        const ir = item.getBoundingClientRect();
+        const zr = zone.getBoundingClientRect();
+        const overlap =
+          ir.left < zr.right  && ir.right  > zr.left &&
+          ir.top  < zr.bottom && ir.bottom > zr.top;
+        if (overlap) {
+          zone.classList.remove('over');
+          zone.classList.add('landed');
+          item.style.pointerEvents = 'none';
+          markSolved();
+        }
+      }
+
+      item.addEventListener('mousedown',  e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+      item.addEventListener('touchstart', e => { const t=e.touches[0]; startDrag(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
+      document.addEventListener('mousemove',  e => moveDrag(e.clientX, e.clientY));
+      document.addEventListener('touchmove',  e => { const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
+      document.addEventListener('mouseup',    endDrag);
+      document.addEventListener('touchend',   endDrag);
+
+      setCleanup(() => {
+        document.removeEventListener('mouseup', endDrag);
+        document.removeEventListener('touchend', endDrag);
+      });
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 5 — The Patience Puzzle
+     A countdown ring counts down 5 seconds.  If you click
+     anything during that time, the timer resets.  Just wait.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '⏳ DON\'T touch anything.\nWait 5 seconds in silence.',
+    setup(container, { markSolved, feedback, setCleanup }) {
+
+      const TOTAL = 5;
+      let elapsed  = 0;
+      let interval = null;
+      let done     = false;
+
+      /* Ring UI */
+      const ring = document.createElement('div');
+      ring.id    = 'patience-ring';
+      ring.innerHTML = `
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="55" />
+        </svg>
+        <div id="patience-count">${TOTAL}</div>
+        <div id="patience-label">seconds</div>
+      `;
+      container.appendChild(ring);
+
+      const elCount  = ring.querySelector('#patience-count');
+      const elCircle = ring.querySelector('circle');
+      const CIRC = 345; // 2π×55
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--m);font-size:.8rem;text-align:center';
+      tip.textContent = '🤫 Patience is a virtue…';
+      container.appendChild(tip);
+
+      function updateRing() {
+        const frac = elapsed / TOTAL;
+        elCircle.style.strokeDashoffset = (CIRC - CIRC * frac).toFixed(1);
+        const rem = Math.ceil(TOTAL - elapsed);
+        elCount.textContent = rem > 0 ? rem : '✓';
+      }
+
+      function resetTimer() {
+        if (done) return;
+        elapsed = 0;
+        updateRing();
+        feedback('❌ You touched something! Start over.', 'wrong');
+      }
+
+      function startTimer() {
+        if (interval) clearInterval(interval);
+        interval = setInterval(() => {
+          elapsed += 0.1;
+          updateRing();
+          if (elapsed >= TOTAL) {
+            clearInterval(interval);
+            done = true;
+            markSolved();
+          }
+        }, 100);
+      }
+
+      startTimer();
+
+      /* Any interaction on the game screen resets the timer */
+      const gameScreen = document.getElementById('screen-game');
+      const blocker = e => {
+        /* Allow the "Next Level" button after solve */
+        if (done) return;
+        if (e.target.id === 'btn-next') return;
+        resetTimer();
+        startTimer();
+      };
+      gameScreen.addEventListener('click',     blocker);
+      gameScreen.addEventListener('touchstart', blocker, {passive:true});
+
+      setCleanup(() => {
+        clearInterval(interval);
+        gameScreen.removeEventListener('click', blocker);
+        gameScreen.removeEventListener('touchstart', blocker);
+      });
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 6 — Simon Says (4-step sequence)
+     Four coloured buttons flash a sequence of 4 steps.  Players
+     must repeat them in exact order.  One mistake resets.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🎵 WATCH the colour sequence, then REPEAT it.\nOne mistake resets!',
+    setup(container, { markSolved, feedback, setCleanup }) {
+
+      const COLS = [
+        { id:'R', bg:'#ef4444', glow:'rgba(239,68,68,.6)'   },
+        { id:'G', bg:'#10b981', glow:'rgba(16,185,129,.6)'  },
+        { id:'B', bg:'#3b82f6', glow:'rgba(59,130,246,.6)'  },
+        { id:'Y', bg:'#f59e0b', glow:'rgba(245,158,11,.6)'  },
+      ];
+      const SEQ_LEN = 4;
+      let sequence    = [];
+      let playerInput = [];
+      let locked      = true; // disallow clicks during playback
+      let timers      = [];
+
+      const grid = document.createElement('div');
+      grid.className = 'simon-grid';
+
+      const btns = {};
+      COLS.forEach(c => {
+        const b = document.createElement('button');
+        b.className    = 'simon-btn';
+        b.style.background  = c.bg;
+        b.style.color       = c.bg; // so currentColor glow works
+        b.dataset.id = c.id;
+
+        b.addEventListener('click', () => {
+          if (locked) { feedback('⏳ Watch first!', 'wrong'); return; }
+          flashBtn(b, 150);
+          playerInput.push(c.id);
+
+          const idx = playerInput.length - 1;
+          if (playerInput[idx] !== sequence[idx]) {
+            /* Wrong! */
+            feedback('❌ Wrong! Watch again…', 'wrong');
+            playerInput = [];
+            locked = true;
+            updatePips();
+            setTimeout(() => playSequence(), 1200);
+          } else if (playerInput.length === sequence.length) {
+            /* All correct */
+            markSolved();
+          } else {
+            updatePips();
+          }
+        });
+
+        btns[c.id] = b;
+        grid.appendChild(b);
+        b.classList.add('active');
+      });
+
+      const statusEl = document.createElement('div');
+      statusEl.id = 'simon-status';
+      statusEl.textContent = 'Get ready…';
+
+      const pipsEl = document.createElement('div');
+      pipsEl.id = 'simon-progress';
+
+      container.appendChild(statusEl);
+      container.appendChild(grid);
+      container.appendChild(pipsEl);
+
+      /* Build sequence */
+      function buildSequence() {
+        sequence = [];
+        for (let i = 0; i < SEQ_LEN; i++) {
+          sequence.push(rand(COLS).id);
+        }
+      }
+
+      /* Flash a button for ms milliseconds */
+      function flashBtn(btn, ms) {
+        btn.classList.add('lit');
+        timers.push(setTimeout(() => btn.classList.remove('lit'), ms));
+      }
+
+      /* Play the full sequence with delays */
+      function playSequence() {
+        playerInput = [];
+        locked = true;
+        statusEl.textContent = '👀 Watch…';
+        updatePips();
+
+        let delay = 500;
+        sequence.forEach((id, i) => {
+          timers.push(setTimeout(() => {
+            flashBtn(btns[id], 420);
+          }, delay + i * 650));
+        });
+
+        /* Unlock input after all flashes */
+        timers.push(setTimeout(() => {
+          locked = false;
+          statusEl.textContent = '👆 Your turn! Repeat the sequence';
+        }, delay + SEQ_LEN * 650 + 100));
+      }
+
+      /* Update pip indicators */
+      function updatePips() {
+        pipsEl.innerHTML = '';
+        sequence.forEach((_, i) => {
+          const pip = document.createElement('div');
+          pip.className = 'simon-pip' + (i < playerInput.length ? ' done' : '');
+          pipsEl.appendChild(pip);
+        });
+      }
+
+      buildSequence();
+      updatePips();
+      setTimeout(playSequence, 600);
+
+      setCleanup(() => timers.forEach(clearTimeout));
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 7 — Runaway Button
+     The button teleports away whenever the cursor/touch gets
+     close.  After 6 evades it gets "tired" and freezes —
+     that's when you can click it.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🏃 Catch the button!\nIt runs away but tires out eventually…',
+    setup(container, { markSolved, feedback, setCleanup }) {
+
+      const EVADE_LIMIT = 6;
+      let evades = 0;
+      let tired  = false;
+
+      const arena = document.createElement('div');
+      arena.id = 'runaway-arena';
+
+      const btn = document.createElement('button');
+      btn.id = 'runaway-btn';
+      btn.textContent = 'CATCH ME!';
+
+      /* Four corners (percentage-based) */
+      const corners = [
+        { top:'8%',  left:'8%'  },
+        { top:'8%',  left:'56%' },
+        { top:'62%', left:'8%'  },
+        { top:'62%', left:'56%' },
+      ];
+      let currentCorner = 0;
+
+      function placeBtn(idx) {
+        btn.style.top  = corners[idx].top;
+        btn.style.left = corners[idx].left;
+      }
+      placeBtn(0);
+
+      const tiredHint = document.createElement('div');
+      tiredHint.id    = 'tired-hint';
+      tiredHint.style.cssText = 'position:absolute;bottom:8px;left:0;right:0;font-size:.72rem;color:var(--m);text-align:center';
+
+      arena.appendChild(btn);
+      arena.appendChild(tiredHint);
+      container.appendChild(arena);
+
+      /* Move to the farthest corner from current */
+      function evade() {
+        if (tired) return;
+        evades++;
+
+        /* Pick a different corner */
+        let next;
+        do { next = Math.floor(Math.random() * 4); }
+        while (next === currentCorner);
+        currentCorner = next;
+        placeBtn(next);
+
+        const remaining = EVADE_LIMIT - evades;
+        if (remaining > 0) {
+          tiredHint.textContent = `${remaining} more evade${remaining>1?'s':''} before it tires…`;
+        } else {
+          tired = true;
+          btn.textContent  = '😴 GOT ME';
+          btn.style.cursor = 'pointer';
+          btn.style.opacity = '1';
+          tiredHint.textContent = '💤 It\'s tired — click it now!';
+        }
+      }
+
+      /* Evade on mouseenter and on touchstart near it */
+      btn.addEventListener('mouseenter', evade);
+      btn.addEventListener('touchstart', e => {
+        evade();
+        e.preventDefault();
+      }, {passive:false});
+
+      btn.addEventListener('click', () => {
+        if (tired) {
+          markSolved();
+        } else {
+          feedback('❌ Too slow! Keep trying.', 'wrong');
+        }
+      });
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 8 — Math Order-of-Operations Trap
+     "1 + 1 + 1 + 1 × 0 = ?"
+     Most people say 0 (they multiply everything) or calculate
+     left-to-right.  Correct answer: 4 (PEMDAS: only 1×0=0, then
+     1+1+1+0 = 3)  — Wait actually let me recalculate:
+     1 + 1 + 1 + (1 × 0) = 1+1+1+0 = 3.
+     Actually the tricky version is: 1+1+1+1×0
+     = 1+1+1+(1×0) = 1+1+1+0 = 3.
+     Options: 0, 3, 4, 5 → Answer: 3
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🔢 What is the answer?\n1 + 1 + 1 + 1 × 0 = ?',
+    setup(container, { markSolved, feedback }) {
+
+      const display = document.createElement('div');
+      display.id = 'math-display';
+      display.innerHTML = '1 + 1 + 1 + 1 <span style="color:var(--r)">× 0</span> = ?';
+      container.appendChild(display);
+
+      const note = document.createElement('p');
+      note.style.cssText = 'color:var(--m);font-size:.78rem;text-align:center;margin-bottom:4px';
+      note.textContent = '⚠️ Multiplication before addition!';
+      container.appendChild(note);
+
+      const opts = document.createElement('div');
+      opts.className = 'math-opts';
+
+      /* Options: 0 (common trap), 3 (correct), 4 (another trap), 5 */
+      const answers = shuffle([
+        { val: 0, correct: false },
+        { val: 3, correct: true  }, // 1+1+1+(1×0) = 3
+        { val: 4, correct: false },
+        { val: 5, correct: false },
+      ]);
+
+      answers.forEach(a => {
+        const btn = document.createElement('button');
+        btn.className = 'math-opt';
+        btn.textContent = a.val;
+
+        btn.addEventListener('click', () => {
+          disableAll(opts, '.math-opt');
+          if (a.correct) {
+            btn.style.borderColor = 'var(--g)';
+            btn.style.background  = 'rgba(16,185,129,.2)';
+            markSolved();
+          } else {
+            btn.style.borderColor = 'var(--r)';
+            btn.style.background  = 'rgba(239,68,68,.15)';
+            feedback('❌ Multiply first! 1×0=0 then add the rest.', 'wrong');
+            setTimeout(() => {
+              btn.style.borderColor = btn.style.background = '';
+              enableAll(opts, '.math-opt');
+            }, 1200);
+          }
+        });
+
+        opts.appendChild(btn);
+      });
+
+      container.appendChild(opts);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 9 — Odd One Out
+     A 6×4 grid of 🟦 squares.  One cell contains 🟪 — find it.
+     The imposter is placed randomly each time.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🔍 One cell is different from the rest.\nFind the imposter and click it!',
+    setup(container, { markSolved, feedback }) {
+
+      const ROWS = 4, COLS = 6;
+      const total  = ROWS * COLS;
+      const oddIdx = Math.floor(Math.random() * total);
+
+      const grid = document.createElement('div');
+      grid.id = 'odd-grid';
+
+      for (let i = 0; i < total; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'odd-cell';
+
+        if (i === oddIdx) {
+          cell.textContent = '🟪';
+          cell.title = 'imposter';
+          cell.addEventListener('click', markSolved);
+        } else {
+          cell.textContent = '🟦';
+          cell.addEventListener('click', () => {
+            feedback('❌ That one is the same. Keep looking!', 'wrong');
+            cell.style.background = 'rgba(239,68,68,.15)';
+            setTimeout(() => cell.style.background = '', 500);
+          });
+        }
+        grid.appendChild(cell);
+      }
+
+      container.appendChild(grid);
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--m);font-size:.78rem;text-align:center';
+      tip.textContent = '👀 Scan every cell — it\'s hiding in there';
+      container.appendChild(tip);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 10 — Type the Word Backwards
+     The player sees a word and must type it in reverse.
+     The input is compared ignoring case.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '✍️ Type this word BACKWARDS in the box below,\nthen press Enter.',
+    setup(container, { markSolved, feedback }) {
+
+      const words = ['BRAIN','PUZZLE','THINK','TRICKY','CLEVER','FOCUS','SHARP'];
+      const word  = rand(words);
+      const answer = word.split('').reverse().join('');
+
+      const wordEl = document.createElement('div');
+      wordEl.id = 'reverse-word';
+      wordEl.textContent = word;
+      container.appendChild(wordEl);
+
+      const input = document.createElement('input');
+      input.id          = 'reverse-input';
+      input.type        = 'text';
+      input.maxLength   = word.length;
+      input.placeholder = `${word.length} letters`;
+      input.autocomplete = 'off';
+      input.autocorrect  = 'off';
+      input.spellcheck   = false;
+      container.appendChild(input);
+
+      const submitBtn = document.createElement('button');
+      submitBtn.className = 'btn';
+      submitBtn.style.cssText = 'background:linear-gradient(135deg,var(--p),var(--b));color:#fff;margin-top:4px';
+      submitBtn.textContent = 'Check →';
+      container.appendChild(submitBtn);
+
+      function checkAnswer() {
+        const val = input.value.trim().toUpperCase();
+        if (val === answer) {
+          input.style.borderColor = 'var(--g)';
+          markSolved();
+        } else if (val.length === 0) {
+          feedback('✏️ Type something first!', 'wrong');
+        } else {
+          input.style.borderColor = 'var(--r)';
+          feedback(`❌ Not quite. Hint: starts with "${answer[0]}"`, 'wrong');
+          setTimeout(() => input.style.borderColor = '', 800);
+        }
+      }
+
+      submitBtn.addEventListener('click', checkAnswer);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') checkAnswer(); });
+
+      setTimeout(() => input.focus(), 300);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 11 — Click 1 → 2 → 3 → 4 → 5 in Order
+     Five scattered number buttons.  Click wrong order = all reset.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🔢 Click: 1 → 2 → 3 → 4 → 5 in order.\nWrong click? Everything resets!',
+    setup(container, { markSolved, feedback }) {
+
+      const arena = document.createElement('div');
+      arena.className = 'num5-arena';
+
+      /* Non-overlapping positions for 5 buttons */
+      const positions = shuffle([
+        { top:'5%',  left:'5%'  },
+        { top:'5%',  left:'65%' },
+        { top:'40%', left:'35%' },
+        { top:'68%', left:'5%'  },
+        { top:'68%', left:'65%' },
+      ]);
+
+      const colors = ['#a855f7','#3b82f6','#10b981','#f59e0b','#ec4899'];
+      let nextExpected = 1;
+      const btns = [];
+
+      [1,2,3,4,5].forEach((num, i) => {
+        const btn = document.createElement('button');
+        btn.className   = 'n5-btn';
+        btn.textContent = num;
+        btn.style.background = colors[i];
+        btn.style.top    = positions[i].top;
+        btn.style.left   = positions[i].left;
+
+        btn.addEventListener('click', () => {
+          if (num === nextExpected) {
+            btn.classList.add('clicked');
+            nextExpected++;
+            if (nextExpected > 5) markSolved();
+          } else {
+            /* Reset */
+            feedback(`❌ Click ${nextExpected} next! Resetting…`, 'wrong');
+            btn.classList.add('flash-err');
+            setTimeout(() => {
+              btns.forEach(b => {
+                b.classList.remove('clicked','flash-err');
+              });
+              nextExpected = 1;
+            }, 500);
+          }
+        });
+
+        btns.push(btn);
+        arena.appendChild(btn);
+      });
+
+      container.appendChild(arena);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 12 — Fibonacci: What Comes Next?
+     Sequence: 1, 1, 2, 3, 5, 8, ?
+     Answer: 13.  Distractors: 11, 12, 14.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🌀 What comes next in this sequence?',
+    setup(container, { markSolved, feedback }) {
+
+      const seqEl = document.createElement('div');
+      seqEl.id = 'fib-sequence';
+      seqEl.innerHTML = '1, 1, 2, 3, 5, 8, <span class="blank">?</span>';
+      container.appendChild(seqEl);
+
+      const note = document.createElement('p');
+      note.style.cssText = 'color:var(--m);font-size:.8rem;text-align:center';
+      note.textContent = '💡 Each number is the sum of the two before it';
+      container.appendChild(note);
+
+      const opts = document.createElement('div');
+      opts.className = 'choice-row';
+
+      const answers = shuffle([
+        { val:11, correct:false },
+        { val:12, correct:false },
+        { val:13, correct:true  }, // 5+8
+        { val:14, correct:false },
+      ]);
+
+      answers.forEach(a => {
+        const btn = document.createElement('button');
+        btn.className = 'mc-btn';
+        btn.textContent = a.val;
+
+        btn.addEventListener('click', () => {
+          disableAll(opts, '.mc-btn');
+          if (a.correct) {
+            btn.classList.add('correct-c');
+            markSolved();
+          } else {
+            btn.classList.add('wrong-c');
+            feedback('❌ Add the last two numbers together!', 'wrong');
+            setTimeout(() => {
+              btn.classList.remove('wrong-c');
+              enableAll(opts, '.mc-btn');
+            }, 1000);
+          }
+        });
+
+        opts.appendChild(btn);
+      });
+
+      container.appendChild(opts);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 13 — Forbidden Click
+     A big scary "DO NOT CLICK THIS BUTTON" button is the answer.
+     Two decoy "safe" buttons do nothing useful.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🚫 The puzzle says:\n"Click the button you should NOT click."',
+    setup(container, { markSolved, feedback }) {
+
+      const wrap = document.createElement('div');
+      wrap.className = 'forbidden-wrap';
+
+      /* Decoy buttons */
+      const decoys = document.createElement('div');
+      decoys.className = 'decoy-wrap';
+
+      ['✅ Safe Button','☑️ Click Here'].forEach(label => {
+        const d = document.createElement('button');
+        d.className   = 'decoy-btn';
+        d.textContent = label;
+        d.addEventListener('click', () =>
+          feedback('❌ That\'s a safe button. Read the instruction again!', 'wrong')
+        );
+        decoys.appendChild(d);
+      });
+
+      /* The forbidden button (= the answer) */
+      const forbidden = document.createElement('button');
+      forbidden.id = 'forbidden-btn';
+      forbidden.innerHTML = '🔴 DO NOT CLICK<br>THIS BUTTON';
+      forbidden.style.textAlign = 'center';
+      forbidden.addEventListener('click', () => {
+        forbidden.style.background = 'linear-gradient(135deg,#065f46,var(--g))';
+        forbidden.style.borderColor = '#34d399';
+        forbidden.style.boxShadow = '0 0 28px rgba(16,185,129,.5)';
+        markSolved();
+      });
+
+      wrap.appendChild(decoys);
+      wrap.appendChild(forbidden);
+      container.appendChild(wrap);
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--m);font-size:.78rem;text-align:center;padding:0 12px';
+      tip.textContent = '😈 Sometimes the rules are the puzzle';
+      container.appendChild(tip);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 14 — Count the Letter "E"
+     Sentence: "THE TREE BETWEEN THE STEEP EDGES FELL"
+     Count every "E" (including in words).  Answer = 11
+     Show options: 8, 9, 10, 11
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '📝 Count every letter "E" in the sentence.\nClick the correct total!',
+    setup(container, { markSolved, feedback }) {
+
+      const SENTENCE = 'THE TREE BETWEEN THE STEEP EDGES FELL';
+      // T-H-E(1) T-R-E(2)-E(3) B-E(4)-T-W-E(5)-E(6)-N T-H-E(7) S-T-E(8)-E(9)-P E(10)-D-G-E(11)-S F-E(12)-L-L
+      // Let me recount: THE=1, TREE=2, BETWEEN=3, THE=1, STEEP=2, EDGES=2, FELL=1 → total = 12
+      // THE: E(1) → 1
+      // TREE: E,E → 2  cumul 3
+      // BETWEEN: E,E,E → 3  cumul 6
+      // THE: E → 1  cumul 7
+      // STEEP: E,E → 2  cumul 9
+      // EDGES: E,E → 2  cumul 11
+      // FELL: E → 1  cumul 12
+      // Total = 12
+      // Let me use a different sentence with answer = 9 so it's trickier to count
+
+      // "EVERY ELEPHANT ENTERED THE ELEGANT RESERVE"
+      // EVERY: E,E → wait E-V-E-R-Y = 2
+      // ELEPHANT: E-L-E-P-H-A-N-T = 2
+      // ENTERED: E-N-T-E-R-E-D = 3
+      // THE: T-H-E = 1
+      // ELEGANT: E-L-E-G-A-N-T = 2
+      // RESERVE: R-E-S-E-R-V-E = 3
+      // Total = 2+2+3+1+2+3 = 13... too many
+
+      // Let me use: "WHENEVER THE BREEZE SETTLES"
+      // WHENEVER: W-H-E-N-E-V-E-R = 3
+      // THE: T-H-E = 1
+      // BREEZE: B-R-E-E-Z-E = 3
+      // SETTLES: S-E-T-T-L-E-S = 2
+      // Total = 9
+      // Good!
+
+      const sent = 'WHENEVER THE BREEZE SETTLES';
+      // Correct count: 9 (as calculated above)
+      const CORRECT = 9;
+
+      /* Render sentence with E's highlighted */
+      const sentEl = document.createElement('div');
+      sentEl.id = 'count-sentence';
+      sentEl.innerHTML = sent.split('').map(ch =>
+        ch === 'E' ? `<span class="highlight">E</span>` : ch
+      ).join('');
+      container.appendChild(sentEl);
+
+      // Show unhighlighted version for challenge
+      sentEl.innerHTML = sent; // plain text — let them count!
+
+      const note = document.createElement('p');
+      note.style.cssText = 'color:var(--m);font-size:.8rem;text-align:center';
+      note.textContent = 'Count EVERY "E" including inside words';
+      container.appendChild(note);
+
+      const opts = document.createElement('div');
+      opts.className = 'count-opts';
+
+      shuffle([7, 8, 9, 10]).forEach(n => {
+        const btn = document.createElement('button');
+        btn.className = 'count-opt';
+        btn.textContent = n;
+
+        btn.addEventListener('click', () => {
+          disableAll(opts, '.count-opt');
+          if (n === CORRECT) {
+            btn.style.borderColor = 'var(--g)';
+            btn.style.background  = 'rgba(16,185,129,.2)';
+            /* Now highlight the E's so they can see */
+            sentEl.innerHTML = sent.split('').map(ch =>
+              ch === 'E' ? `<span class="highlight">E</span>` : ch
+            ).join('');
+            markSolved();
+          } else {
+            btn.style.borderColor = 'var(--r)';
+            feedback(`❌ Not ${n} — count every single E!`, 'wrong');
+            setTimeout(() => {
+              btn.style.borderColor = btn.style.background = '';
+              enableAll(opts, '.count-opt');
+            }, 1100);
+          }
+        });
+
+        opts.appendChild(btn);
+      });
+
+      container.appendChild(opts);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 15 — Shrinking Target
+     A button slowly shrinks over 6 seconds.  Player must click
+     it 5 times before it disappears completely.  Each click
+     flashes green; running out of time resets.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '⏱️ Click the button 5 times before it shrinks away!',
+    setup(container, { markSolved, feedback, setCleanup }) {
+
+      const TOTAL_TIME = 6000; // ms
+      const TARGET_CLICKS = 5;
+      let clicks   = 0;
+      let start    = null;
+      let rafId    = null;
+      let finished = false;
+
+      const wrap   = document.createElement('div');
+      wrap.id = 'shrink-wrap';
+
+      const btn = document.createElement('button');
+      btn.id = 'shrink-btn';
+      btn.textContent = `Click me!\n0 / ${TARGET_CLICKS}`;
+      btn.style.whiteSpace = 'pre-line';
+      btn.style.lineHeight = '1.3';
+
+      const barWrap = document.createElement('div');
+      barWrap.id = 'shrink-bar-wrap';
+      const bar = document.createElement('div');
+      bar.id = 'shrink-bar';
+      barWrap.appendChild(bar);
+
+      wrap.appendChild(btn);
+      wrap.appendChild(barWrap);
+      container.appendChild(wrap);
+
+      btn.addEventListener('click', () => {
+        if (finished) return;
+        clicks++;
+        btn.textContent = `Click me!\n${clicks} / ${TARGET_CLICKS}`;
+        /* Flash effect */
+        btn.style.boxShadow = '0 0 30px var(--g)';
+        setTimeout(() => btn.style.boxShadow = '0 0 22px rgba(168,85,247,.5)', 150);
+
+        if (clicks >= TARGET_CLICKS) {
+          finished = true;
+          cancelAnimationFrame(rafId);
+          btn.style.transform = 'scale(1)';
+          btn.textContent = '✅ Done!';
+          markSolved();
+        }
+      });
+
+      /* Shrink animation */
+      function animate(ts) {
+        if (!start) start = ts;
+        const elapsed = ts - start;
+        const frac    = Math.min(elapsed / TOTAL_TIME, 1);
+        const scale   = 1 - frac * 0.92; // shrinks to near 0
+        btn.style.transform = `scale(${scale.toFixed(3)})`;
+        bar.style.width     = ((1 - frac) * 100).toFixed(1) + '%';
+
+        if (frac >= 1 && !finished) {
+          /* Time ran out */
+          finished = true;
+          btn.textContent  = '💨 Gone!';
+          btn.style.opacity = '0.2';
+          btn.style.pointerEvents = 'none';
+          feedback(`❌ Too slow! You got ${clicks}/${TARGET_CLICKS}. Retrying…`, 'wrong');
+          /* Reset after 1.5s */
+          setTimeout(() => {
+            clicks = 0; start = null; finished = false;
+            btn.textContent = `Click me!\n0 / ${TARGET_CLICKS}`;
+            btn.style.cssText = '';
+            btn.style.whiteSpace = 'pre-line';
+            btn.style.lineHeight = '1.3';
+            btn.style.width = '90px'; btn.style.height = '90px';
+            btn.style.borderRadius = '50%';
+            btn.style.border = 'none';
+            btn.style.background = 'linear-gradient(135deg,var(--p),var(--b))';
+            btn.style.color = '#fff'; btn.style.fontSize = '1rem';
+            btn.style.fontWeight = '900'; btn.style.cursor = 'pointer';
+            btn.style.boxShadow = '0 0 22px rgba(168,85,247,.5)';
+            bar.style.width = '100%';
+            rafId = requestAnimationFrame(animate);
+          }, 1500);
+          return;
+        }
+
+        if (!finished) rafId = requestAnimationFrame(animate);
+      }
+
+      rafId = requestAnimationFrame(animate);
+      setCleanup(() => cancelAnimationFrame(rafId));
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 16 — Memory Grid
+     A 3×3 grid.  Three random cells light up for 2 seconds, then
+     go dark.  Player must click those exact 3 cells from memory.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🧠 Remember the lit cells!\nThen click them from memory.',
+    setup(container, { markSolved, feedback, setCleanup }) {
+
+      const SIZE  = 9;
+      const COUNT = 3;
+      let phase   = 'showing'; // 'showing' | 'input'
+      let found   = new Set();
+      let targets = new Set();
+      let timers  = [];
+
+      /* Pick 3 random indices */
+      const idxList = shuffle([...Array(SIZE).keys()]).slice(0, COUNT);
+      idxList.forEach(i => targets.add(i));
+
+      const statusEl = document.createElement('div');
+      statusEl.id = 'mem-status';
+      statusEl.textContent = '👀 Memorise the lit cells…';
+
+      const grid = document.createElement('div');
+      grid.id = 'mem-grid';
+
+      const cells = [];
+      for (let i = 0; i < SIZE; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'mem-cell';
+        if (targets.has(i)) cell.classList.add('lit');
+
+        cell.addEventListener('click', () => {
+          if (phase !== 'input') { feedback('⏳ Wait for the cells to go dark first!', 'wrong'); return; }
+
+          if (found.has(i)) return; // already clicked
+
+          if (targets.has(i)) {
+            found.add(i);
+            cell.classList.add('hit');
+            cell.classList.remove('lit');
+            cell.style.pointerEvents = 'none';
+
+            if (found.size === COUNT) markSolved();
+          } else {
+            /* Wrong cell — reveal correct ones and reset */
+            cell.classList.add('miss');
+            feedback('❌ Wrong cell! Watch carefully this time.', 'wrong');
+            setTimeout(() => {
+              /* Reset board */
+              cells.forEach((c, idx) => {
+                c.classList.remove('lit','hit','miss');
+                c.style.pointerEvents = '';
+              });
+              found.clear();
+              phase = 'showing';
+              statusEl.textContent = '👀 Watch again…';
+
+              /* Re-light after a beat */
+              timers.push(setTimeout(() => {
+                targets.forEach(idx => cells[idx].classList.add('lit'));
+                timers.push(setTimeout(() => {
+                  targets.forEach(idx => cells[idx].classList.remove('lit'));
+                  phase = 'input';
+                  statusEl.textContent = '👆 Now click the cells you saw!';
+                }, 2000));
+              }, 600));
+            }, 800);
+          }
+        });
+
+        cells.push(cell);
+        grid.appendChild(cell);
+      }
+
+      container.appendChild(statusEl);
+      container.appendChild(grid);
+
+      /* After 2 seconds, hide the lit cells and switch to input phase */
+      timers.push(setTimeout(() => {
+        targets.forEach(idx => cells[idx].classList.remove('lit'));
+        phase = 'input';
+        statusEl.textContent = '👆 Now click the cells you saw!';
+      }, 2000));
+
+      setCleanup(() => timers.forEach(clearTimeout));
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 17 — Reaction Time
+     A circle sits on screen.  After a random delay (1.5–4s) it
+     turns green.  Player must click it while it's green (within
+     1.8s).  Clicking too early resets; missing the window resets.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '⚡ Click the circle the INSTANT it turns GREEN.\nToo early or too late = fail!',
+    setup(container, { markSolved, feedback, setCleanup }) {
+
+      let phase   = 'wait'; // 'wait' | 'go' | 'done'
+      let timers  = [];
+
+      const circle = document.createElement('div');
+      circle.id = 'reaction-circle';
+      circle.innerHTML = `<div id="reaction-label">⏳ Wait…</div><div style="font-size:.7rem;color:var(--m)">Don't click yet</div>`;
+      container.appendChild(circle);
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--m);font-size:.78rem;text-align:center';
+      tip.textContent   = 'Random delay — stay focused!';
+      container.appendChild(tip);
+
+      function goGreen() {
+        phase = 'go';
+        circle.classList.add('go');
+        circle.querySelector('#reaction-label').textContent = '🟢 NOW!';
+        circle.querySelector('div:last-child').textContent = 'Click it!';
+
+        /* Window to click: 1.8 seconds */
+        timers.push(setTimeout(() => {
+          if (phase !== 'done') {
+            phase = 'wait';
+            circle.classList.remove('go');
+            circle.querySelector('#reaction-label').textContent = '😭 Too slow!';
+            feedback('❌ You missed the window! Try again.', 'wrong');
+            circle.classList.add('missed');
+            timers.push(setTimeout(reset, 1200));
+          }
+        }, 1800));
+      }
+
+      function reset() {
+        if (phase === 'done') return;
+        phase = 'wait';
+        circle.className = '';
+        circle.id = 'reaction-circle';
+        circle.innerHTML = `<div id="reaction-label">⏳ Wait…</div><div style="font-size:.7rem;color:var(--m)">Don't click yet</div>`;
+
+        /* Random delay 1.5–4 seconds before going green */
+        const delay = 1500 + Math.random() * 2500;
+        timers.push(setTimeout(goGreen, delay));
+      }
+
+      circle.addEventListener('click', () => {
+        if (phase === 'go') {
+          phase = 'done';
+          circle.querySelector('#reaction-label').textContent = '🎉 Got it!';
+          circle.style.background = 'rgba(16,185,129,.4)';
+          markSolved();
+        } else if (phase === 'wait') {
+          feedback('❌ Too early! Wait for green.', 'wrong');
+          circle.style.borderColor = 'var(--r)';
+          circle.style.boxShadow   = '0 0 20px rgba(239,68,68,.4)';
+          timers.forEach(clearTimeout);
+          timers = [];
+          timers.push(setTimeout(() => {
+            circle.style.borderColor = circle.style.boxShadow = '';
+            reset();
+          }, 900));
+        }
+      });
+
+      /* Initial ready state */
+      circle.classList.add('ready');
+      const startDelay = 1500 + Math.random() * 2500;
+      timers.push(setTimeout(goGreen, startDelay));
+
+      setCleanup(() => timers.forEach(clearTimeout));
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 18 — Darker Shade
+     Two colour swatches of very similar hue are shown.
+     Player must pick the darker one.  The difference is subtle.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🎨 Which colour swatch is DARKER?\nThink carefully — they\'re close!',
+    setup(container, { markSolved, feedback }) {
+
+      /* Pairs: [lighterHex, darkerHex, label] */
+      const pairs = [
+        ['#4ade80','#16a34a','green'],
+        ['#60a5fa','#1d4ed8','blue'],
+        ['#f472b6','#be185d','pink'],
+        ['#fbbf24','#b45309','amber'],
+        ['#a78bfa','#6d28d9','purple'],
+      ];
+      const chosen = rand(pairs);
+      const [light, dark, _label] = chosen;
+
+      /* Randomly assign left/right */
+      const isLightLeft = Math.random() > 0.5;
+      const leftHex  = isLightLeft ? light : dark;
+      const rightHex = isLightLeft ? dark  : light;
+      const correctSide = isLightLeft ? 'right' : 'left';
+
+      const row = document.createElement('div');
+      row.className = 'shade-row';
+
+      [
+        { hex: leftHex,  side: 'left'  },
+        { hex: rightHex, side: 'right' },
+      ].forEach(sw => {
+        const swatch = document.createElement('div');
+        swatch.className = 'shade-swatch';
+        swatch.style.background = sw.hex;
+
+        swatch.addEventListener('click', () => {
+          row.querySelectorAll('.shade-swatch').forEach(s =>
+            s.style.pointerEvents = 'none'
+          );
+          if (sw.side === correctSide) {
+            swatch.style.borderColor = '#fff';
+            swatch.style.boxShadow   = '0 0 24px rgba(255,255,255,.5)';
+            markSolved();
+          } else {
+            swatch.style.borderColor = 'var(--r)';
+            swatch.style.boxShadow   = '0 0 18px rgba(239,68,68,.5)';
+            feedback('❌ That one is lighter! Look more carefully.', 'wrong');
+            setTimeout(() => {
+              row.querySelectorAll('.shade-swatch').forEach(s => {
+                s.style.borderColor = 'transparent';
+                s.style.boxShadow   = '';
+                s.style.pointerEvents = '';
+              });
+            }, 1100);
+          }
+        });
+
+        row.appendChild(swatch);
+      });
+
+      container.appendChild(row);
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--m);font-size:.78rem;text-align:center';
+      tip.textContent = '💡 Your eyes can deceive you — trust your instinct';
+      container.appendChild(tip);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 19 — Feather vs Gold (Troy Weight Trick)
+     "A pound of gold or a pound of feathers — which is heavier?"
+     Gold uses TROY pounds (12 oz).  Feathers use AVOIRDUPOIS
+     pounds (16 oz).  So feathers are heavier!
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '⚖️ Which is heavier:\na POUND of gold or a POUND of feathers?\n(They\'re both "a pound"…)',
+    setup(container, { markSolved, feedback }) {
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--y);font-size:.78rem;text-align:center;border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 12px;background:rgba(245,158,11,.07)';
+      tip.textContent = '⚠️ Gold uses Troy pounds (12 oz). Everyday items use Avoirdupois pounds (16 oz).';
+      container.appendChild(tip);
+
+      const row = document.createElement('div');
+      row.className = 'choice-row';
+
+      const options = shuffle([
+        { emoji:'🪨', label:'Gold',    sub:'(precious metal)', correct:false },
+        { emoji:'🪶', label:'Feathers',sub:'(everyday weight)',correct:true  }, // 16 oz > 12 oz
+        { emoji:'⚖️', label:'Equal',   sub:'(same name = same)',correct:false },
+      ]);
+
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.innerHTML = `${opt.emoji}<span class="label">${opt.label}</span><span class="label" style="font-size:.65rem;opacity:.6">${opt.sub}</span>`;
+
+        btn.addEventListener('click', () => {
+          disableAll(row, '.choice-btn');
+          if (opt.correct) {
+            btn.classList.add('correct-c');
+            markSolved();
+          } else {
+            btn.classList.add('wrong-c');
+            feedback('❌ Gold uses Troy pounds (12 oz) — feathers use 16 oz!', 'wrong');
+            setTimeout(() => {
+              btn.classList.remove('wrong-c');
+              enableAll(row, '.choice-btn');
+            }, 1200);
+          }
+        });
+
+        row.appendChild(btn);
+      });
+
+      container.appendChild(row);
+    }
+  },
+
+
+  /* ──────────────────────────────────────────────────────────────
+     LEVEL 20 — The Meta Twist (Final Boss)
+     Several styled "buttons" appear but none work.  The answer
+     is a plain-text phrase that doesn't look clickable at all.
+  ────────────────────────────────────────────────────────────── */
+  {
+    question: '🃏 FINAL BOSS: Click the button that is NOT a button.\n(Read carefully!)',
+    setup(container, { markSolved, feedback }) {
+
+      const wrap = document.createElement('div');
+      wrap.className = 'meta-wrap';
+
+      /* Three convincing-looking fake buttons */
+      ['🟢 This is the answer', '⭐ Click for win', '✅ Final answer here'].forEach(label => {
+        const fb = document.createElement('button');
+        fb.className = 'fake-btn';
+        fb.textContent = label;
+        fb.addEventListener('click', () =>
+          feedback('❌ That\'s a real button — find the one that ISN\'T!', 'wrong')
+        );
+        wrap.appendChild(fb);
+      });
+
+      /* The "not a button" — plain styled text */
+      const realEl = document.createElement('span');
+      realEl.id = 'real-answer-text';
+      realEl.textContent = 'I am not a button';
+      realEl.style.cssText = `
+        color:var(--m); font-size:.92rem; font-weight:600;
+        cursor:pointer; border-bottom:2px dashed rgba(255,255,255,.15);
+        padding:4px 8px; transition:color .2s,border-color .2s;
+        display:inline-block; margin-top:6px;
+      `;
+      realEl.addEventListener('mouseenter', () => {
+        realEl.style.color = 'var(--y)';
+        realEl.style.borderBottomColor = 'var(--y)';
+      });
+      realEl.addEventListener('mouseleave', () => {
+        realEl.style.color = 'var(--m)';
+        realEl.style.borderBottomColor = 'rgba(255,255,255,.15)';
+      });
+      realEl.addEventListener('click', () => {
+        realEl.style.color = 'var(--g)';
+        markSolved();
+      });
+
+      wrap.appendChild(realEl);
+      container.appendChild(wrap);
+
+      const tip = document.createElement('p');
+      tip.style.cssText = 'color:var(--m);font-size:.75rem;text-align:center;padding:0 10px';
+      tip.textContent = '🧠 If it looks like a button, it probably isn\'t the answer';
+      container.appendChild(tip);
+    }
+  },
+
+]; // end LEVELS
+</script>
+
+</body>
+</html>
