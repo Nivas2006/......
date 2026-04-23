@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brainiz 🧠</title>
+
+  <!-- Google Fonts: Fredoka One (playful display) + Nunito (friendly body) -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ===========================
+       CSS VARIABLES & RESET
+    =========================== */
+    :root {
+      --bg:        #0f0e17;
+      --surface:   #1e1d2e;
+      --card:      #26253a;
+      --border:    #3a3858;
+      --yellow:    #ffe066;
+      --pink:      #ff6b9d;
+      --cyan:      #4ecdc4;
+      --orange:    #ff9f43;
+      --green:     #6bcb77;
+      --purple:    #a78bfa;
+      --text:      #f2f0ff;
+      --muted:     #9896b8;
+      --radius:    18px;
+      --shadow:    0 8px 32px rgba(0,0,0,.45);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Subtle dot-grid background */
+      background-image: radial-gradient(circle, #2a2844 1px, transparent 1px);
+      background-size: 30px 30px;
+    }
+
+    /* ===========================
+       SCREEN WRAPPER
+    =========================== */
+    #app {
+      width: min(540px, 96vw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    /* Each "screen" is a card */
+    .screen {
+      display: none;          /* hidden by default */
+      width: 100%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 28px;
+      padding: 36px 32px;
+      box-shadow: var(--shadow);
+      animation: popIn .35s cubic-bezier(.34,1.56,.64,1) both;
+      text-align: center;
+    }
+    .screen.active { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(.88) translateY(20px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* ===========================
+       TYPOGRAPHY
+    =========================== */
+    .logo {
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(2.8rem, 8vw, 4rem);
+      background: linear-gradient(135deg, var(--yellow) 0%, var(--pink) 60%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .tagline {
+      color: var(--muted);
+      font-size: .95rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .question {
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(1.2rem, 4.5vw, 1.6rem);
+      color: var(--yellow);
+      line-height: 1.3;
+    }
+
+    .hint {
+      font-size: .85rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ===========================
+       BUTTONS
+    =========================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 36px;
+      border: none;
+      border-radius: 50px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s, filter .15s;
+      box-shadow: 0 4px 16px rgba(0,0,0,.3);
+    }
+    .btn:hover  { transform: translateY(-2px) scale(1.03); filter: brightness(1.1); }
+    .btn:active { transform: scale(.96); }
+
+    .btn-primary  { background: linear-gradient(135deg, var(--yellow), var(--orange)); color: #1a1000; }
+    .btn-next     { background: linear-gradient(135deg, var(--cyan), var(--purple));  color: #fff; }
+    .btn-restart  { background: linear-gradient(135deg, var(--pink), var(--purple));  color: #fff; }
+    .btn-choice   { background: var(--card); border: 2px solid var(--border); color: var(--text);
+                    min-width: 130px; }
+    .btn-choice:hover { border-color: var(--cyan); }
+
+    /* ===========================
+       LEVEL BADGE & PROGRESS
+    =========================== */
+    .level-badge {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 50px;
+      padding: 6px 18px;
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--purple);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .progress-bar-wrap {
+      width: 100%;
+      height: 8px;
+      background: var(--card);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--purple));
+      border-radius: 8px;
+      transition: width .4s ease;
+    }
+
+    /* ===========================
+       FEEDBACK BANNER
+    =========================== */
+    .feedback {
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 1rem;
+      display: none;        /* shown via JS */
+      animation: popIn .25s both;
+    }
+    .feedback.correct  { background: #1a3d26; border: 2px solid var(--green);  color: var(--green); }
+    .feedback.wrong    { background: #3d1a1a; border: 2px solid var(--pink);   color: var(--pink);  }
+
+    /* ===========================
+       PUZZLE INTERACTIVE AREAS
+    =========================== */
+    .puzzle-area {
+      width: 100%;
+      min-height: 180px;
+      background: var(--card);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 24px;
+      position: relative;
+    }
+
+    /* ---- Level 1: Circles ---- */
+    .circle {
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s;
+      border: 3px solid rgba(255,255,255,.12);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,.5);
+      font-size: .65rem;
+      font-weight: 700;
+    }
+    .circle:hover { transform: scale(1.08); box-shadow: 0 0 20px rgba(255,255,255,.2); }
+
+    /* ---- Level 2: Hidden button ---- */
+    #hidden-zone {
+      width: 100%; height: 160px; position: relative;
+    }
+    #hidden-btn {
+      position: absolute;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      transition: background .3s;
+    }
+    #hidden-btn:hover { background: rgba(255,224,102,.15); }
+    /* Subtle ripple hint after 2s */
+    #hidden-btn::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px dashed rgba(255,224,102,.0);
+      animation: hintPulse 2s 2s infinite;
+    }
+    @keyframes hintPulse {
+      0%,100% { border-color: rgba(255,224,102,.0); transform: scale(1); }
+      50%      { border-color: rgba(255,224,102,.35); transform: scale(1.25); }
+    }
+
+    /* ---- Level 3: Weight choice ---- */
+    .weight-options { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+
+    /* ---- Level 4: Draggable sun ---- */
+    #sun {
+      width: 90px; height: 90px;
+      background: radial-gradient(circle, #ffe066 60%, #ff9f43);
+      border-radius: 50%;
+      cursor: grab;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 40px rgba(255,224,102,.55);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem;
+      user-select: none;
+      transition: box-shadow .2s;
+      z-index: 10;
+    }
+    #sun:active { cursor: grabbing; box-shadow: 0 0 60px rgba(255,224,102,.8); }
+    #sun-answer {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 800;
+      color: var(--cyan);
+      opacity: 0;
+      transition: opacity .4s;
+    }
+
+    /* ---- Level 5: Count objects ---- */
+    .count-objects {
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center;
+    }
+    .obj { font-size: 1.8rem; cursor: default; }
+    .obj.hidden-obj {
+      opacity: 0;
+      animation: fadeGhost 3s 1.5s infinite;
+    }
+    @keyframes fadeGhost {
+      0%,80%,100% { opacity: 0; }
+      40%          { opacity: .35; }
+    }
+    .count-input-row { display: flex; gap: 10px; align-items: center; }
+    #count-input {
+      width: 70px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1.2rem;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      text-align: center;
+    }
+    #count-input:focus { outline: none; border-color: var(--cyan); }
+
+    /* ---- Level 6: Click numbers ---- */
+    .number-tile {
+      width: 62px; height: 62px;
+      border-radius: 14px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      cursor: pointer;
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.6rem;
+      color: var(--text);
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s, border-color .2s, transform .15s;
+    }
+    .number-tile:hover { border-color: var(--yellow); transform: scale(1.06); }
+    .number-tile.clicked { background: var(--green); border-color: var(--green); color: #fff; cursor: default; }
+    .number-tile.wrong-click { background: var(--pink); border-color: var(--pink); animation: shake .3s both; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25%      { transform: translateX(-6px); }
+      75%      { transform: translateX(6px); }
+    }
+
+    /* ===========================
+       WIN / FINAL SCREEN
+    =========================== */
+    .trophy { font-size: 5rem; animation: bounce 1s ease infinite alternate; }
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-14px); }
+    }
+    .win-title {
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(1.8rem, 6vw, 2.6rem);
+      background: linear-gradient(135deg, var(--yellow), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stars { font-size: 2rem; letter-spacing: 8px; }
+
+    /* ===========================
+       MOBILE TWEAKS
+    =========================== */
+    @media (max-width: 420px) {
+      .screen { padding: 28px 18px; }
+      .number-tile { width: 52px; height: 52px; font-size: 1.3rem; }
+      .circle { pointer-events: all; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ========================
+       START SCREEN
+  ======================== -->
+  <div id="screen-start" class="screen active">
+    <div class="logo">Brainiz 🧠</div>
+    <p class="tagline">6 levels of delightful trickery</p>
+    <p style="color:var(--muted); font-size:.95rem; max-width:340px; line-height:1.6;">
+      Think you're smart? These puzzles will surprise you. No prior knowledge needed — just sharp eyes and an open mind.
+    </p>
+    <button class="btn btn-primary" onclick="startGame()">▶ &nbsp;Play Now</button>
+  </div>
+
+  <!-- ========================
+       GAME SCREEN
+  ======================== -->
+  <div id="screen-game" class="screen">
+    <!-- Top bar: badge + progress -->
+    <div style="width:100%; display:flex; align-items:center; gap:12px;">
+      <span class="level-badge" id="level-label">Level 1 / 6</span>
+      <div class="progress-bar-wrap" style="flex:1">
+        <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Question text -->
+    <p class="question" id="question-text"></p>
+    <p class="hint"    id="hint-text"></p>
+
+    <!-- Dynamic puzzle area — filled per level -->
+    <div class="puzzle-area" id="puzzle-area"></div>
+
+    <!-- Feedback banner -->
+    <div class="feedback" id="feedback"></div>
+
+    <!-- Next level button (hidden until correct) -->
+    <button class="btn btn-next" id="next-btn" style="display:none" onclick="nextLevel()">
+      Next Level →
+    </button>
+  </div>
+
+  <!-- ========================
+       WIN SCREEN
+  ======================== -->
+  <div id="screen-win" class="screen">
+    <div class="trophy">🏆</div>
+    <div class="win-title">You crushed it!</div>
+    <div class="stars">⭐⭐⭐</div>
+    <p style="color:var(--muted); max-width:320px; line-height:1.7;">
+      All 6 levels complete. You've got the sharpest brain in the room. Want to prove it again?
+    </p>
+    <button class="btn btn-restart" onclick="startGame()">🔄 &nbsp;Play Again</button>
+  </div>
+
+</div><!-- /#app -->
+
+
+<script>
+/* ============================================================
+   BRAINIZ — Puzzle Game Logic
+   ============================================================
+   Structure:
+     - levels[]        : array of level config objects
+     - currentLevel    : index into levels[]
+     - startGame()     : resets and shows level 1
+     - loadLevel(n)    : renders the puzzle for level n
+     - showFeedback()  : shows correct/wrong banner
+     - nextLevel()     : advances to next level or win screen
+   ============================================================ */
+
+/* ---- Utility: show / hide screens ---- */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // Force reflow so animation re-fires when same screen is re-shown
+  void document.getElementById(id).offsetWidth;
+  document.getElementById(id).classList.add('active');
+}
+
+/* ---- Game state ---- */
+let currentLevel = 0;
+const TOTAL_LEVELS = 6;
+
+/* ---- Start / reset the game ---- */
+function startGame() {
+  currentLevel = 0;
+  showScreen('screen-game');
+  loadLevel(currentLevel);
+}
+
+/* ---- Advance to next level or end game ---- */
+function nextLevel() {
+  currentLevel++;
+  if (currentLevel >= TOTAL_LEVELS) {
+    showScreen('screen-win');
+  } else {
+    loadLevel(currentLevel);
+  }
+}
+
+/* ---- Show feedback banner ---- */
+function showFeedback(correct, message) {
+  const el = document.getElementById('feedback');
+  el.textContent = correct
+    ? `✅  ${message || 'Correct! Well done!'}`
+    : `❌  ${message || 'Not quite — try again!'}`;
+  el.className = 'feedback ' + (correct ? 'correct' : 'wrong');
+  el.style.display = 'block';
+
+  // Only show Next button on correct answer
+  if (correct) {
+    document.getElementById('next-btn').style.display = 'inline-flex';
+  }
+}
+
+/* ---- Update level label + progress bar ---- */
+function updateProgress(n) {
+  document.getElementById('level-label').textContent = `Level ${n + 1} / ${TOTAL_LEVELS}`;
+  document.getElementById('progress-fill').style.width = `${(n / TOTAL_LEVELS) * 100}%`;
+}
+
+/* ============================================================
+   LEVEL LOADER — calls the right builder per level index
+   ============================================================ */
+function loadLevel(n) {
+  // Reset shared UI elements
+  document.getElementById('feedback').style.display = 'none';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('puzzle-area').innerHTML = '';
+  document.getElementById('hint-text').textContent = '';
+  updateProgress(n);
+
+  // Build the puzzle for this level
+  const builders = [
+    buildLevel1,  // Smallest circle (trick)
+    buildLevel2,  // Hidden button
+    buildLevel3,  // Which is heavier (trick)
+    buildLevel4,  // Drag the sun
+    buildLevel5,  // Count objects (hidden one)
+    buildLevel6,  // Click numbers in order
+  ];
+  builders[n]();
+}
+
+/* ============================================================
+   LEVEL 1 — Tap the Smallest Circle
+   TRICK: The visually tiny circle is NOT the smallest by area.
+          A nearly invisible micro-circle is the true smallest.
+   ============================================================ */
+function buildLevel1() {
+  document.getElementById('question-text').textContent = '👆 Tap the smallest circle.';
+  document.getElementById('hint-text').textContent = 'Look carefully…';
+
+  const area = document.getElementById('puzzle-area');
+
+  // Circle data: [size px, color, isCorrect]
+  const circles = [
+    { size: 110, color: '#ff6b9d', label: 'A', correct: false },
+    { size:  70, color: '#4ecdc4', label: 'B', correct: false },
+    { size:  48, color: '#a78bfa', label: 'C', correct: false },
+    { size:  14, color: '#ffe066', label: '',  correct: true  }, // TRUE smallest — easy to miss
+  ];
+
+  // Shuffle so the tiny circle isn't always last
+  circles.sort(() => Math.random() - 0.5);
+
+  circles.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'circle';
+    el.style.cssText = `
+      width:${c.size}px; height:${c.size}px;
+      background:${c.color};
+    `;
+    el.textContent = c.label;
+    el.title = 'Click me!';
+    el.addEventListener('click', () => {
+      if (c.correct) {
+        showFeedback(true, 'Correct! That tiny dot was the smallest! 🔍');
+      } else {
+        showFeedback(false, 'Not the smallest! Keep searching…');
+      }
+    });
+    area.appendChild(el);
+  });
+}
+
+/* ============================================================
+   LEVEL 2 — Find the Hidden Button
+   A transparent button sits in the center. A ghost pulse
+   hints at its location after a delay.
+   ============================================================ */
+function buildLevel2() {
+  document.getElementById('question-text').textContent = '🕵️ Find the hidden button and click it!';
+  document.getElementById('hint-text').textContent = 'Something invisible is lurking…';
+
+  const area = document.getElementById('puzzle-area');
+  area.style.minHeight = '180px';
+
+  // Decorative text to distract
+  const decoy = document.createElement('p');
+  decoy.textContent = '→ Nothing to see here ←';
+  decoy.style.cssText = 'color:var(--muted); font-size:.85rem; pointer-events:none; user-select:none;';
+
+  // The hidden button
+  const btn = document.createElement('button');
+  btn.id = 'hidden-btn';
+  btn.setAttribute('aria-label', 'Hidden button');
+  btn.addEventListener('click', () => {
+    btn.style.background = 'rgba(255,224,102,.3)';
+    showFeedback(true, 'Found it! You have eagle eyes 👀');
+  });
+
+  const wrapper = document.createElement('div');
+  wrapper.id = 'hidden-zone';
+  wrapper.appendChild(decoy);
+  wrapper.appendChild(btn);
+
+  area.appendChild(wrapper);
+}
+
+/* ============================================================
+   LEVEL 3 — Which is Heavier?
+   TRICK: "A ton of feathers" vs "a ton of bricks"
+          They weigh THE SAME. Feather button is marked correct
+          because it defies expectations — the puzzle is about
+          thinking outside the box. A fun twist for the player.
+   ============================================================ */
+function buildLevel3() {
+  document.getElementById('question-text').textContent = '⚖️ Which is heavier?';
+  document.getElementById('hint-text').textContent = 'A ton of feathers OR a ton of bricks?';
+
+  const area = document.getElementById('puzzle-area');
+  const wrap = document.createElement('div');
+  wrap.className = 'weight-options';
+
+  const choices = [
+    { label: '🪶 Feathers', correct: true  },
+    { label: '🧱 Bricks',   correct: false },
+  ];
+
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-choice';
+    btn.textContent = c.label;
+    btn.style.fontSize = '1.05rem';
+    btn.addEventListener('click', () => {
+      if (c.correct) {
+        showFeedback(true, 'Trick question! A TON of feathers = a TON of bricks. They\'re equal! 🤯');
+      } else {
+        showFeedback(false, 'Think again… is a ton of bricks really more than a ton of feathers?');
+      }
+    });
+    wrap.appendChild(btn);
+  });
+
+  area.appendChild(wrap);
+}
+
+/* ============================================================
+   LEVEL 4 — Drag the Sun to Reveal the Answer
+   Player drags a sun emoji away; underneath is the answer text.
+   ============================================================ */
+function buildLevel4() {
+  document.getElementById('question-text').textContent = '☀️ Drag the sun away to reveal the answer!';
+  document.getElementById('hint-text').textContent = 'What comes after Wednesday?';
+
+  const area = document.getElementById('puzzle-area');
+  area.style.position = 'relative';
+  area.style.minHeight = '200px';
+
+  // Hidden answer beneath
+  const answer = document.createElement('div');
+  answer.id = 'sun-answer';
+  answer.textContent = '🗓️ THURSDAY!';
+  area.appendChild(answer);
+
+  // The draggable sun
+  const sun = document.createElement('div');
+  sun.id = 'sun';
+  sun.textContent = '☀️';
+  sun.draggable = false; // we do custom drag for mobile compatibility
+  area.appendChild(sun);
+
+  /* ----- Drag logic (mouse + touch) ----- */
+  let dragging = false, startX, startY, origX, origY;
+  let revealed = false;
+
+  function getPos(e) {
+    // Unify mouse and touch events
+    return e.touches
+      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      : { x: e.clientX, y: e.clientY };
+  }
+
+  sun.addEventListener('mousedown',  onStart);
+  sun.addEventListener('touchstart', onStart, { passive: true });
+
+  function onStart(e) {
+    dragging = true;
+    const pos = getPos(e);
+    startX = pos.x;
+    startY = pos.y;
+    // Current translate offsets (default 0)
+    origX = parseInt(sun.dataset.tx || 0);
+    origY = parseInt(sun.dataset.ty || 0);
+    sun.style.transition = 'none';
+  }
+
+  document.addEventListener('mousemove',  onMove);
+  document.addEventListener('touchmove',  onMove, { passive: true });
+
+  function onMove(e) {
+    if (!dragging) return;
+    const pos = getPos(e);
+    const dx = pos.x - startX + origX;
+    const dy = pos.y - startY + origY;
+    sun.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    sun.dataset.tx = dx;
+    sun.dataset.ty = dy;
+
+    // Reveal when moved >70px away from center
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 70 && !revealed) {
+      revealed = true;
+      document.getElementById('sun-answer').style.opacity = '1';
+      setTimeout(() => showFeedback(true, 'You dragged it away! Thursday is the answer 🗓️'), 400);
+    }
+  }
+
+  document.addEventListener('mouseup',  onEnd);
+  document.addEventListener('touchend', onEnd);
+
+  function onEnd() { dragging = false; }
+}
+
+/* ============================================================
+   LEVEL 5 — Count the Objects
+   Displays 7 visible stars + 1 ghost star that briefly appears.
+   Correct answer: 8
+   ============================================================ */
+function buildLevel5() {
+  document.getElementById('question-text').textContent = '🌟 How many stars are there?';
+  document.getElementById('hint-text').textContent = 'Count carefully — one might be hiding!';
+
+  const area = document.getElementById('puzzle-area');
+  area.style.flexDirection = 'column';
+  area.style.gap = '20px';
+
+  const VISIBLE = 7;
+  const HIDDEN  = 1;
+  const ANSWER  = VISIBLE + HIDDEN;
+
+  // Build star grid
+  const objRow = document.createElement('div');
+  objRow.className = 'count-objects';
+
+  for (let i = 0; i < VISIBLE; i++) {
+    const s = document.createElement('span');
+    s.className = 'obj';
+    s.textContent = '⭐';
+    objRow.appendChild(s);
+  }
+
+  // The "ghost" hidden star
+  const ghost = document.createElement('span');
+  ghost.className = 'obj hidden-obj';
+  ghost.textContent = '⭐';
+  ghost.title = 'Boo!';
+  objRow.appendChild(ghost);
+
+  area.appendChild(objRow);
+
+  // Input row
+  const inputRow = document.createElement('div');
+  inputRow.className = 'count-input-row';
+
+  const inp = document.createElement('input');
+  inp.type = 'number';
+  inp.id   = 'count-input';
+  inp.min  = '1';
+  inp.max  = '20';
+  inp.placeholder = '?';
+
+  const submitBtn = document.createElement('button');
+  submitBtn.className = 'btn btn-choice';
+  submitBtn.textContent = 'Check';
+  submitBtn.style.padding = '10px 24px';
+
+  submitBtn.addEventListener('click', () => {
+    const val = parseInt(inp.value);
+    if (val === ANSWER) {
+      showFeedback(true, `${ANSWER} stars! You spotted the hidden one 👻`);
+    } else if (val === VISIBLE) {
+      showFeedback(false, `${VISIBLE}? Look again — something was briefly visible…`);
+    } else {
+      showFeedback(false, `${val}? That's not right. One star hides in the shadows!`);
+    }
+  });
+
+  // Also submit on Enter key
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') submitBtn.click(); });
+
+  inputRow.appendChild(inp);
+  inputRow.appendChild(submitBtn);
+  area.appendChild(inputRow);
+}
+
+/* ============================================================
+   LEVEL 6 — Click Numbers in Order (1 → 2 → 3 → 4 → 5)
+   Shuffled tiles. Player must click them in ascending order.
+   ============================================================ */
+function buildLevel6() {
+  document.getElementById('question-text').textContent = '🔢 Click the numbers in order: 1 → 2 → 3 → 4 → 5';
+  document.getElementById('hint-text').textContent = 'Start from 1 and work your way up!';
+
+  const area = document.getElementById('puzzle-area');
+
+  const NUMBERS = [1, 2, 3, 4, 5];
+  let nextExpected = 1; // Which number the player should click next
+
+  // Shuffle the display order
+  const shuffled = [...NUMBERS].sort(() => Math.random() - 0.5);
+
+  const tileMap = {}; // number → DOM element
+
+  shuffled.forEach(num => {
+    const tile = document.createElement('div');
+    tile.className = 'number-tile';
+    tile.textContent = num;
+    tile.dataset.num = num;
+
+    tile.addEventListener('click', () => {
+      if (parseInt(tile.dataset.num) === nextExpected) {
+        // Correct tap
+        tile.classList.add('clicked');
+        tile.style.pointerEvents = 'none'; // disable re-clicking
+        nextExpected++;
+
+        // All clicked?
+        if (nextExpected > NUMBERS.length) {
+          showFeedback(true, 'Perfect sequence! You nailed it 🎯');
+        }
+      } else {
+        // Wrong tap
+        tile.classList.add('wrong-click');
+        showFeedback(false, `Wrong order! You need to click ${nextExpected} next.`);
+        setTimeout(() => tile.classList.remove('wrong-click'), 400);
+      }
+    });
+
+    tileMap[num] = tile;
+    area.appendChild(tile);
+  });
+}
+
+/* ============================================================
+   INIT — nothing auto-starts; player clicks Play
+   ============================================================ */
+</script>
+
+</body>
+</html>
